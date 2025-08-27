@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login</title>
+</head>
+<body>
+  <h1>Inloggen</h1>
+
+  <form id="email-form">
+    <label>Email
+      <input id="email" type="email" required />
+    </label>
+    <button type="submit">Stuur magic link</button>
+  </form>
+
+  <button id="google">Login met Google</button>
+  <button id="logout" style="display:none">Log uit</button>
+
+  <pre id="status"></pre>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // Vul je keys in:
+    const SUPABASE_URL = 'https://hgkzczyvobewtnlmipih.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhna3pjenl2b2Jld3RubG1pcGloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyMjk3MjQsImV4cCI6MjA3MTgwNTcyNH0.uLcX2PO7jx8NOXHQTwfu0LSJUQS4Fu9rgzgugTiBit4';
+
+    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const statusEl = document.getElementById('status');
+    const logoutBtn = document.getElementById('logout');
+
+    // Toon huidige sessie
+    async function showSession() {
+      const { data: { session } } = await client.auth.getSession();
+      statusEl.textContent = JSON.stringify(session, null, 2);
+      logoutBtn.style.display = session ? 'inline-block' : 'none';
+    }
+
+    // Magic link (email)
+    document.getElementById('email-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value;
+      const { error } = await client.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: window.location.origin + '/auth/callback' }
+      });
+      statusEl.textContent = error ? ('Error: ' + error.message) : 'Check je e-mail voor de magic link.';
+    });
+
+    // OAuth (Google)
+    document.getElementById('google').addEventListener('click', async () => {
+      const { data, error } = await client.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin + '/auth/callback' }
+      });
+      if (error) statusEl.textContent = 'Error: ' + error.message;
+      // Browser gaat redirecten naar Google → terug naar /auth/callback
+    });
+
+    // Sign out
+    logoutBtn.addEventListener('click', async () => {
+      await client.auth.signOut();
+      showSession();
+    });
+
+    // Reageer op auth events (bv. op /auth/callback)
+    client.auth.onAuthStateChange((_event, _session) => showSession());
+
+    showSession();
+  </script>
+</body>
+</html>
